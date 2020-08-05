@@ -9,7 +9,7 @@ import time
 
 from . import Healthchecker
 from aglais_healthchecker.aglais_auth import Auth
-from aglais_healthchecker.aglais_results import ZeppelinResults
+from aglais_healthchecker.aglais_results import ZeppelinResults, Status as ZeppelinStatus
 from aglais_healthchecker.aglais_resource import ZeppelinResource, ServiceStatus
 from aglais_healthchecker.aglais_recoverer import ZeppelinRecoverer
 from aglais_healthchecker.aglais_storage import Storage, StorageTypes
@@ -17,17 +17,23 @@ from aglais_healthchecker.aglais_storage import Storage, StorageTypes
 
 class ZeppelinHealthchecker(Healthchecker):
     '''
-    classdocs
+    Zeppelin HealthChecker Class
+    
+    Used to Health Check a list of resources using the REST API of each Zeppelin Resource.
+    Resources are built from a configuration file, where you can define the list of resources, authentication configuration, paragraphs and cells to execute, and maxtimeouts
+    and whether to recover the service
+    
+    If recover is True, also try to recover the Service if it does not respond.
     '''
 
-    def __init__(self, config):
+    def __init__(self, config, isTest = False):
         '''
         Constructor
         '''
-        self._unpacked = self.unpack(config)
-        self.resources = self._unpacked["resources"]
-        
-        
+        self.config = config
+        self.resources, self.hasValidConfig = self.unpack(config) 
+        self.isTest = isTest
+    
     @property
     def resources(self):
         return self.__resources
@@ -36,9 +42,32 @@ class ZeppelinHealthchecker(Healthchecker):
     @resources.setter 
     def resources(self, resources):
         self.__resources = resources    
+
+    @property
+    def config(self):
+        return self.__config
     
     
-    def unpack(self, config):
+    @config.setter 
+    def config(self, config):
+        self.resources, self.hasValidConfig = self.unpack(config) 
+        self.__config = config    
+            
+    
+    def hasValidConfig(self):
+        """
+        Return if Healthchecker has a valid configuration loaded
+        """
+        return self.hasValidConfig
+    
+    
+    def unpack(self, configFile):
+        """
+        Unpack a configuration File and store the data for the Resources that will be healthchecked in Healthchecker object
+        
+        :type configFile: str
+        :rtype: (dict, bool)
+        """
         
         def _getResources(config):
             resources = []
@@ -47,24 +76,39 @@ class ZeppelinHealthchecker(Healthchecker):
             
             for r in config["resources"]:
                 if "auth" in r:
-                    auth = Auth(username=r["auth"]["username"], password=r["auth"]["password"])
-               
+                    auth = Auth(username=r["auth"]["username"], password=r["auth"]["password"])             
                 if "logging" in r:
                     storage_obj = r["logging"]
                     storage = Storage(storage_obj["storageType"], storage_obj["file"], storage_obj["path"])
-                    
                 resource = ZeppelinResource(url=r["url"], name=r["name"], max_execution_time=r["max_execution_time"], notebookid=r.get("notebookid",None), paragraphid=r.get("paragraphid",None), interpreterid=r.get("interpreterid",None), auth=auth, storage=storage)
                 resources.append(resource)
             
             return resources
+
+        unpacked = {}
+        validConfig = True
         
-        result = {}
-        unpacked = json.loads(config)
-        result["resources"] = _getResources(unpacked)
-        return result
+        try:
+            with open(configFile, 'r') as outfile:
+                config = outfile.read()
+            unpacked =  _getResources(json.loads(config))
+        except Exception as e:
+            validConfig = False
+        finally:
+            if not unpacked:
+                validConfig = False   
+        
+        return (unpacked, validConfig)
 
 
     def _http_request(self, session, url, timeout=None):
+        """
+        Perform an HTTP Request and get output as a string
+        
+        :type session: requests.Session
+        :type url: str
+        :rtype: str
+        """
         response_text = ""
         
         if timeout:
@@ -79,77 +123,91 @@ class ZeppelinHealthchecker(Healthchecker):
     
     def healthcheck(self, resources, recover=True):
         """
-        Health Check a list of resources
+        Health Check a list of resources, Return response dictionary with status, message & timestamp of check
+        If recover is True, also try to recover the Service if it does not respond.
+        
+        
+        :type resources: List[ZeppelinResource]
+        :type recover: bool
+        :rtype: List[dict]
+        
         """
-        response = {}
+        responses = []
+        
+        results = {}
         timestamp = time.strftime('%X %x %Z')
 
-        try:
-            results = self.run_paragraphs(resources)
+        for resource in resources:
+            results[resource] = self.run_paragraphs(resource)
+
+            response = {}
+            
             for resource, result in results.items():
-                isAlive = self.validate_results(result)
-                if not isAlive:
-                    if recover:
-                        resource.status = ServiceStatus.ERROR
-                        ZeppelinRecoverer.recover(resource)
-                        resource.status = ServiceStatus.RESTARTED
-                        response["message"] = "Service restarted at: {}".format(timestamp) if resource.status == ServiceStatus.RESTARTED else ""
+                try:
+                    isAlive = self.result.isServiceAlive()
+                    if not isAlive:
+                        if recover:
+                            resource.status = ServiceStatus.FAILED
+                            ZeppelinRecoverer.recover(resource)
+                            result.status = ZeppelinStatus.RESTARTED
+                            resource.status = ServiceStatus.OK
+                            response["message"] = "Service restarted at: {}".format(timestamp) if resource.status == ServiceStatus.OK else ""
+                        else:
+                            response["message"] = "Service is {}, but not recovered".format(resource.status)
                     else:
-                        response["message"] = "Service is UNHEALTHY, but not recovered"
-                else:
-                    response["message"] = "Service is HEALTHY"
-
-            response["status"] =  resource.status
-
-        except Exception as e:
-            response["status"] = "FAILED"
-            response["message"] = e
-        
-        response["timestamp"] = timestamp 
-
-        # Log Results
-        resource.storage.log(response)
-    
+                        response["message"] = "Service is {}".format(resource.status)
+                    response["status"] =  result.status
+                except Exception as e:
+                    response["status"] = ZeppelinStatus.FAILED
+                    response["message"] = e
+                finally:
+                    response["timestamp"] = timestamp 
+                    # Log Results
+                    resource.storage.log(response)
+                    
+                results.append(response)
+                
         return response
     
     
-    def validate_results(self, result):
-        return result.is_service_alive()
-    
-    
-    def run_paragraphs(self, resources):
+    def run_paragraphs(self, resource):
         """
-        Run all Zeppelin test Paragraphs in resources
+        Run all Zeppelin test Paragraphs in resource
+        :type resources: ZeppelinResource
+        :rtype: ZeppelinResults
         """
         zepResults = ZeppelinResults()
         elapsed_time = 0
         start, end =  (0, 0)
-        results = {}
         
-        for resource in resources:
+        try:
+            start = time.time()
+            max_execution_time = resource.max_execution_time 
+            session = resource.session
             
-            try:
-                start = time.time()
-                storage = resource.storage
-                max_execution_time = resource.max_execution_time 
-                session = resource.session
+            if self.isTest:
+                response_text = '{"status":"OK","body":{"code":"SUCCESS","msg":[{"type":"TEXT","data":"Pi is roughly 3.141573"}]}}'
+            else:
                 response_text = self._http_request(session, resource.get_paragraph_url(), max_execution_time)
-                #response_text = '{"status":"OK","body":{"code":"SUCCESS","msg":[{"type":"TEXT","data":"Pi is roughly 3.141573"}]}}'
-                zepResults = ZeppelinResults(unparsed = response_text, executiontime=elapsed_time)
+            
+            zepResults = ZeppelinResults(unparsed = response_text, executiontime=elapsed_time)
+            end = time.time()
+            elapsed_time = end - start
+            
+        except Exception as e:
+            if start and not end:
                 end = time.time()
-                elapsed_time = end - start
-                
-            except Exception as e:
-                if start and not end:
-                    end = time.time()
-                    elapsed_time = end - start    
-                zepResults = ZeppelinResults(status="FAILED", msg=e, executiontime=elapsed_time)
-            print(zepResults)
+                elapsed_time = end - start    
+            zepResults = ZeppelinResults(status=ZeppelinStatus.UNHEALTHY, msg=e, executiontime=elapsed_time)
 
-            results[resource] = zepResults
-        return results
+        return zepResults
         
     
     def startmonitor(self):
+        """
+        TODO
+        Implement method to start a monitor as a background process
+        
+        """
         pass
     

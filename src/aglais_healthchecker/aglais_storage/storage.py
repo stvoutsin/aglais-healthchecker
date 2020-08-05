@@ -11,7 +11,9 @@ class StorageTypes(object):
     
 class Storage(object):
     '''
-    classdocs
+    Store information about the storage to be used for logging the output of a Healthcheck
+    To start with we are using file, this may be extend to log to DBs or ElasticSearch etc..
+    
     '''
 
     def __init__(self, storageType=None, name=None, path=None, mode='a'):
@@ -70,11 +72,17 @@ class Storage(object):
         return 
     
     
-    def log_to_file(self, dictionary):    
+    def log_to_file(self, dictionary):  
+        """
+        Log the given dictionary to File
+        :type dictionary: dict
+        :rtype: bool
+        """
+          
         with open(self.path + "/" + self.name, "a") as myfile:
             for k, v in dictionary.items():
                 myfile.write(k + ": " + str(v))
                 myfile.write('\n')
             myfile.write('\n\n')
 
-        return
+        return True

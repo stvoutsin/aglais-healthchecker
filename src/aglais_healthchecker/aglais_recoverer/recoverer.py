@@ -3,11 +3,11 @@ Created on Jul 31, 2020
 
 @author: stelios
 '''
-from abc import ABC, abstractmethod
+from abc import ABC, abstractstaticmethod
 
 class Recoverer(ABC):
     '''
-    classdocs
+    Class used to recover a given Resource
     '''
 
 
@@ -16,6 +16,9 @@ class Recoverer(ABC):
         Constructor
         '''
     
-    @staticmethod
+    @abstractstaticmethod
     def recover(self):        
+        """
+        Recover method
+        """
         return

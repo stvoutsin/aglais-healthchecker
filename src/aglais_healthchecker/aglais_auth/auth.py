@@ -7,7 +7,7 @@ Created on Jul 30, 2020
 
 class Auth(object):
     '''
-    classdocs
+    Class to store authentication information about a user
     '''
 
     def __init__(self, username="", password="", token=""):

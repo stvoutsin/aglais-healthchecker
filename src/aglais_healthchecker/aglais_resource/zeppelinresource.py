@@ -10,7 +10,8 @@ import requests
 
 class ZeppelinResource(AbsResource):
     '''
-    classdocs
+    Class to hold information for Zeppelin Service
+    
     '''
 
 
@@ -33,6 +34,9 @@ class ZeppelinResource(AbsResource):
         
         
     def authenticate(self):
+        """
+        Authenticate a user, using the parameters from the configuration
+        """
         self.session = requests.Session()
         self.session.post(self.url + "/login",data={"userName" : self.auth.username, "password" : self.auth.password})
             
@@ -40,9 +44,8 @@ class ZeppelinResource(AbsResource):
     def get_paragraph_url(self):
         """
         Formulate the paragraph URL to run for the REST API
-        
+    
           http://[zeppelin-server]:[zeppelin-port]/api/notebook/run/[noteId]/[paragraphId]
-
         """
         return self.url + "/notebook/run/" + self.notebookid + "/" + self.paragraphid
         
@@ -50,9 +53,8 @@ class ZeppelinResource(AbsResource):
     def get_interpreter_restart_url(self):
         """
         Formulate the interpeter restart URL to run for the REST API
-        
-          http://[zeppelin-server]:[zeppelin-port]/api/interpreter/setting/restart/[interpreter ID]
 
+          http://[zeppelin-server]:[zeppelin-port]/api/interpreter/setting/restart/[interpreter ID]
         """
         return self.url + "/interpreter/setting/restart/" + self.interpreterid        
     

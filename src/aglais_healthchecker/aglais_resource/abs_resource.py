@@ -6,14 +6,16 @@ Created on Jul 30, 2020
 from abc import ABC, abstractmethod
 
 class ServiceStatus(object):
-    ERROR = "ERROR"
+    """
+    Enum for the status of a service
+    """
     OK = "OK"
-    RESTARTED = "RESTARTED"
+    FAILED = "FAILED"
     
     
 class AbsResource(ABC):
     '''
-    classdocs
+    Abstract Resource class
     '''
 
 
