@@ -6,13 +6,12 @@ Created on Jul 30, 2020
 import unittest
 from  aglais_healthchecker import ZeppelinHealthchecker
 from aglais_healthchecker import Status
- 
 
 class TestZeppelinHealthcheck(unittest.TestCase):
 
 
     def setUp(self):
-        config = "../data/sample-config-healthy.json"
+        config = "../data/sample-config.json"
         self.z = ZeppelinHealthchecker(config)
         pass
 
@@ -21,10 +20,9 @@ class TestZeppelinHealthcheck(unittest.TestCase):
         pass
 
 
-    def testHealthy(self):
-        result = self.z.healthcheck(self.z.resources, recover=False)[0]
-        self.assertEqual(result["status"], Status.SUCCESS)
-
+    def testNotHealthyRecover(self):
+        result = self.z.healthcheck(self.z.resources, recover=True)[0]
+        self.assertEqual(result["status"], Status.RESTARTED)
 
 
 if __name__ == "__main__":

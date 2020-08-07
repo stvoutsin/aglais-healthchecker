@@ -6,7 +6,7 @@ Created on Jul 30, 2020
 import json
 import requests
 import time
-
+import logging
 from . import Healthchecker
 from aglais_healthchecker.aglais_auth import Auth
 from aglais_healthchecker.aglais_results import ZeppelinResults, Status as ZeppelinStatus
@@ -54,6 +54,10 @@ class ZeppelinHealthchecker(Healthchecker):
         self.__config = config    
             
     
+    def loadConfig(self, config):
+        self.config = config
+        
+    
     def hasValidConfig(self):
         """
         Return if Healthchecker has a valid configuration loaded
@@ -79,7 +83,7 @@ class ZeppelinHealthchecker(Healthchecker):
                     auth = Auth(username=r["auth"]["username"], password=r["auth"]["password"])             
                 if "logging" in r:
                     storage_obj = r["logging"]
-                    storage = Storage(storage_obj["storageType"], storage_obj["file"], storage_obj["path"])
+                    storage = Storage(storage_obj["storageType"], **{  "file" : storage_obj["file"], "path" : storage_obj["path"]})
                 resource = ZeppelinResource(url=r["url"], name=r["name"], max_execution_time=r["max_execution_time"], notebookid=r.get("notebookid",None), paragraphid=r.get("paragraphid",None), interpreterid=r.get("interpreterid",None), auth=auth, storage=storage)
                 resources.append(resource)
             
@@ -93,6 +97,8 @@ class ZeppelinHealthchecker(Healthchecker):
                 config = outfile.read()
             unpacked =  _getResources(json.loads(config))
         except Exception as e:
+            print(e)
+            logging.exception(e)
             validConfig = False
         finally:
             if not unpacked:
@@ -133,31 +139,30 @@ class ZeppelinHealthchecker(Healthchecker):
         
         """
         responses = []
-        
         results = {}
         timestamp = time.strftime('%X %x %Z')
 
+        print(resources)
         for resource in resources:
             results[resource] = self.run_paragraphs(resource)
-
-            response = {}
             
+            response = {}
             for resource, result in results.items():
                 try:
-                    isAlive = self.result.isServiceAlive()
+                    isAlive = result.isServiceAlive()
                     if not isAlive:
                         if recover:
-                            resource.status = ServiceStatus.FAILED
                             ZeppelinRecoverer.recover(resource)
                             result.status = ZeppelinStatus.RESTARTED
-                            resource.status = ServiceStatus.OK
-                            response["message"] = "Service restarted at: {}".format(timestamp) if resource.status == ServiceStatus.OK else ""
+                            response["message"] = "Service restarted at: {}".format(timestamp) 
                         else:
-                            response["message"] = "Service is {}, but not recovered".format(resource.status)
+                            response["message"] = "Service Status: {}, but not recovered".format(resource.status)
                     else:
-                        response["message"] = "Service is {}".format(resource.status)
+                        response["message"] = "Service Status: {}".format(resource.status)
                     response["status"] =  result.status
                 except Exception as e:
+                    print(e)
+                    logging.exception(e)
                     response["status"] = ZeppelinStatus.FAILED
                     response["message"] = e
                 finally:
@@ -165,9 +170,10 @@ class ZeppelinHealthchecker(Healthchecker):
                     # Log Results
                     resource.storage.log(response)
                     
-                results.append(response)
-                
-        return response
+                responses.append(response)
+                resource.session.close()
+
+        return responses
     
     
     def run_paragraphs(self, resource):
@@ -193,12 +199,14 @@ class ZeppelinHealthchecker(Healthchecker):
             zepResults = ZeppelinResults(unparsed = response_text, executiontime=elapsed_time)
             end = time.time()
             elapsed_time = end - start
-            
+            print(response_text)
         except Exception as e:
+            print(e)
             if start and not end:
                 end = time.time()
                 elapsed_time = end - start    
-            zepResults = ZeppelinResults(status=ZeppelinStatus.UNHEALTHY, msg=e, executiontime=elapsed_time)
+            resource.status = ServiceStatus.FAILED
+            zepResults = ZeppelinResults(status=ZeppelinStatus.UNHEALTHY, msg=str(e), executiontime=elapsed_time)
 
         return zepResults
         

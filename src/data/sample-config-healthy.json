@@ -11,11 +11,11 @@
 	   "notebookid" :  "2F8ZEBZDJ",
 	   "paragraphid" :  "20200528-145729_998925121",
 	   "interpreterid" :  "spark",
-	   "max_execution_time" : 1,
+	   "max_execution_time" : 60,
 	   "logging" : {
 		  "storageType" : "FILE",
 		  "file" : "output.log", 
-		  "path" : "./"
+		  "path" : "../data"
 		}
 	   }
 	]

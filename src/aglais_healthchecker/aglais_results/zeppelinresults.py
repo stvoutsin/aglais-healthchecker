@@ -12,7 +12,7 @@ class Status(object):
     Enum type class to hold Status of a Health check
     """
     RESTARTED = "RESTARTED"
-    HEALTHY = "HEALTHY"
+    SUCCESS = "SUCCESS"
     UNHEALTHY = "UNHEALTHY"
     FAILED = "FAILED"
 
@@ -93,7 +93,7 @@ class ZeppelinResults(Results):
         Return if the Zeppelin Service is alive or not
         :rtype: bool
         """
-        return self.status == Status.HEALTHY
+        return self.status == Status.SUCCESS
 
     
     def __str__(self):
