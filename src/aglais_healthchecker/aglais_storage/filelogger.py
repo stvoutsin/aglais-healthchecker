@@ -69,7 +69,7 @@ class FileLogger(Logger):
         :rtype: bool
         """
         try:  
-            with open(self.path + "/" + self.file, "a") as myfile:
+            with open(self.path + "/" + self.file, "a+") as myfile:
                 for k, v in dictionary.items():
                     myfile.write("[" + k.upper() + "]: " + str(v))
                     myfile.write('\n')

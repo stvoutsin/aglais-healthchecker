@@ -209,7 +209,7 @@ class ZeppelinHealthchecker(Healthchecker):
         return zepResults
         
     
-    def startmonitor(self, recover=False, timeout=60.0):
+    def startmonitor(self, recover=False, timeinterval=60.0):
         """
         Start a monitor in a continuous loop, running the healthchecker every [timeout] seconds
 
@@ -217,12 +217,12 @@ class ZeppelinHealthchecker(Healthchecker):
         :type timeout: float        
         """
         import time
-        timeout = float(timeout)
+        timeinterval = float(timeinterval)
         starttime = time.time()
-        print(timeout, starttime)
         while True:
+            print("Starting healthchecker at:"  + str(time.time()))
             self._healthCheck_wrapper(recover)
-            time.sleep(timeout - ((time.time() - starttime) % timeout))
+            time.sleep(timeinterval - ((time.time() - starttime) % timeinterval))
         
         
     def _healthCheck_wrapper(self, recover):

@@ -1,0 +1,23 @@
+{
+	"resources" : [
+	   {
+	   "name" : "GDAF_PROTOTYPE",
+	   "url" : "http://128.232.224.69:8080",
+	   "resource_type" : "zeppelin",
+	   "auth" : {
+	       "username" : "",
+	       "password" : ""
+	     },
+	   "notebookid" :  "2F8ZEBZDJ",
+	   "paragraphid" :  "20200528-145729_998925121",
+	   "interpreterid" :  "spark",
+	   "max_execution_time" : 120,
+	   "logging" : {
+		  "storageType" : "FILE",
+		  "file" : "output.log", 
+		  "path" : "/project/data/"
+		}
+	   }
+	]
+
+}

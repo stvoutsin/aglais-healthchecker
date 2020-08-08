@@ -22,7 +22,7 @@ class TestZeppelinHealthcheckMonitor(unittest.TestCase):
 
 
     def testMonitor(self):
-        self.z.startmonitor(recover=False,timeout=60)
+        self.z.startmonitor(recover=False,timeinterval=120)
         return True
 
 
