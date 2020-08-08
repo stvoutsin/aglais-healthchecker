@@ -34,6 +34,7 @@ class ZeppelinHealthchecker(Healthchecker):
         self.resources, self.hasValidConfig = self.unpack(config) 
         self.isTest = isTest
     
+    
     @property
     def resources(self):
         return self.__resources
@@ -142,7 +143,6 @@ class ZeppelinHealthchecker(Healthchecker):
         results = {}
         timestamp = time.strftime('%X %x %Z')
 
-        print(resources)
         for resource in resources:
             results[resource] = self.run_paragraphs(resource)
             
@@ -161,7 +161,6 @@ class ZeppelinHealthchecker(Healthchecker):
                         response["message"] = "Service Status: {}".format(resource.status)
                     response["status"] =  result.status
                 except Exception as e:
-                    print(e)
                     logging.exception(e)
                     response["status"] = ZeppelinStatus.FAILED
                     response["message"] = e
@@ -199,9 +198,8 @@ class ZeppelinHealthchecker(Healthchecker):
             zepResults = ZeppelinResults(unparsed = response_text, executiontime=elapsed_time)
             end = time.time()
             elapsed_time = end - start
-            print(response_text)
         except Exception as e:
-            print(e)
+            logging.exception(e)
             if start and not end:
                 end = time.time()
                 elapsed_time = end - start    
@@ -211,11 +209,30 @@ class ZeppelinHealthchecker(Healthchecker):
         return zepResults
         
     
-    def startmonitor(self):
+    def startmonitor(self, recover=False, timeout=60.0):
         """
-        TODO
-        Implement method to start a monitor as a background process
+        Start a monitor in a continuous loop, running the healthchecker every [timeout] seconds
+
+        :type recover: bool
+        :type timeout: float        
+        """
+        import time
+        timeout = float(timeout)
+        starttime = time.time()
+        print(timeout, starttime)
+        while True:
+            self._healthCheck_wrapper(recover)
+            time.sleep(timeout - ((time.time() - starttime) % timeout))
         
+        
+    def _healthCheck_wrapper(self, recover):
         """
-        pass
-    
+        
+        Wrapper funtion used to run a healthcheck on the Resources
+        :type recover: bool 
+        :rtype: 
+        """
+        self.healthcheck(self.resources, recover=recover)
+        return
+
+

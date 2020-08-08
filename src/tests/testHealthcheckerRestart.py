@@ -7,7 +7,7 @@ import unittest
 from  aglais_healthchecker import ZeppelinHealthchecker
 from aglais_healthchecker import Status
 
-class TestZeppelinHealthcheck(unittest.TestCase):
+class TestZeppelinHealthcheckRecover(unittest.TestCase):
 
 
     def setUp(self):
